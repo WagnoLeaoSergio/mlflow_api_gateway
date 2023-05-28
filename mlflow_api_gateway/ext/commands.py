@@ -1,8 +1,8 @@
 import click
 
-from project_name.ext.auth import create_user
-from project_name.ext.database import db
-from project_name.models import Product
+from mlflow_api_gateway.ext.auth import create_user
+from mlflow_api_gateway.ext.database import db
+from mlflow_api_gateway.models import Product
 
 
 def create_db():

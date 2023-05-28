@@ -1,9 +1,9 @@
 import sys
 import pytest
 
-from project_name import create_app
-from project_name.ext.commands import populate_db
-from project_name.ext.database import db
+from mlflow_api_gateway import create_app
+from mlflow_api_gateway.ext.commands import populate_db
+from mlflow_api_gateway.ext.database import db
 
 
 @pytest.fixture(scope="session")
