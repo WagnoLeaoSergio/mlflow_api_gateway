@@ -83,8 +83,6 @@ class MLFlowGateway(Resource):
         dados = preprocess_data(health_data)
         x, y = build_dataset(dados)
 
-        validation_size = len(dados) // 2
-
         search_space = {
             "user": user,
             "run_name": run_name,
@@ -121,7 +119,7 @@ class MLFlowGateway(Resource):
         ]['run_id']
 
         predicted_data = []
-        latest_measures = int(validation_size * 0.25)
+        latest_measures = len(x) - int(len(x) * 0.15)
 
         y_pred = best_model.predict(x.iloc[latest_measures:])
 

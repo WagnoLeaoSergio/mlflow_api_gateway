@@ -81,6 +81,7 @@ def preprocess_data(dados):
                 end_date = curr_date - timedelta(minutes=1)
                 dados_freq['heart_rate_end_time'][previous[0]] = end_date
 
+    dados_freq.sort_values(by=["heart_rate_start_time"])
     return dados_freq
 
 
@@ -111,12 +112,13 @@ def build_dataset(dados):
 
     dados.set_index("inicio", inplace=True)
 
-    validation_size = len(dados) // 2
-
     labels = ["minimo", "maximo", "aumento_frequencia", "intervalo_min_max"]
 
-    x = dados[labels][:-validation_size]
-    y = dados["frequencia"][:-validation_size]
+    x = dados[labels]
+    y = dados["frequencia"]
+
+    x.fillna(method='ffill', inplace=True)
+    y.fillna(method='ffill', inplace=True)
 
     return x, y
 
@@ -132,7 +134,8 @@ def train_model(params):
 
         x, y = params['x'], params['y']
 
-        test_size = 0.25
+        # TODO: colocar test_size no hyperopt?
+        test_size = 0.30
 
         x_train, x_test, y_train, y_test = train_test_split(
             x,
@@ -141,8 +144,6 @@ def train_model(params):
             shuffle=False,
             random_state=7
         )
-
-        x_test.fillna(method='ffill', inplace=True)
 
         mlflow.log_param("algorithm", params["algorithm"])
         mlflow.log_param("n_neighbors", params["n_neighbors"])
