@@ -1,14 +1,17 @@
 import os
 import time
 import mlflow
+import numpy as np
+import pandas as pd
 
-from joblib import dump
 from werkzeug.utils import secure_filename
 
-from flask import abort, jsonify, request, send_file
+from flask import request
 from flask_restful import Resource
 
-from ...processor import train_model
+from ...processor import preprocess_data, build_dataset, train_model
+
+from hyperopt import tpe, hp, fmin, Trials
 
 
 class MLFlowGateway(Resource):
@@ -54,16 +57,16 @@ class MLFlowGateway(Resource):
             }, 400
 
         health_file_name = secure_filename(health_file.filename)
-
         health_file.save(os.path.join("datasets", health_file_name))
 
         now = int(time.time() * 1000)
         user = user_id
         run_name = f"{user}_{now}"
-        experiment_name = "prototype_v0"
+        experiment_name = "prototype_v1"
         experiment_id = "0"
 
-        mlflow.set_tracking_uri("sqlite:///mlruns.db")
+        mlflow.set_tracking_uri("http://127.0.0.1:5001")
+        # mlflow.set_tracking_uri("sqlite:///mlruns.db")
 
         current_experiment = mlflow.search_experiments(
             filter_string=f"name = '{experiment_name}'"
@@ -74,22 +77,65 @@ class MLFlowGateway(Resource):
         else:
             experiment_id = current_experiment[0].experiment_id
 
-        run_id = None
         predicted_data = None
 
-        with mlflow.start_run(
-            run_name=run_name,
-            experiment_id=experiment_id,
-        ) as run:
-            run_id = run.info.run_id
-            mlflow.set_tag("mlflow.user", user)
-            mlflow.autolog()
+        health_data = pd.read_csv(os.path.join("datasets", "health_data.csv"))
+        dados = preprocess_data(health_data)
+        x, y = build_dataset(dados)
 
-            predicted_data = train_model()
+        validation_size = len(dados) // 2
+
+        search_space = {
+            "user": user,
+            "run_name": run_name,
+            "experiment_id": experiment_id,
+            "x": x,
+            "y": y,
+            "algorithm": hp.choice('algorithm', ['ball_tree', 'kd_tree', 'brute']),
+            "n_neighbors": hp.uniformint('n_neighbors', 1, 10),
+            "p": hp.choice('p', [1, 2]),
+            "leaf_size": hp.choice('leaf_size', [20, 30, 40]),
+            "weights": hp.choice('weights', ['uniform', 'distance'])
+        }
+
+        trials = Trials()
+
+        fmin(
+            fn=train_model,
+            space=search_space,
+            algo=tpe.suggest,
+            max_evals=10,
+            trials=trials
+        )
+
+        best_model = trials.results[
+            np.argmin(
+                [r['loss'] for r in trials.results]
+            )
+        ]['model']
+
+        best_run = trials.results[
+            np.argmin(
+                [r['loss'] for r in trials.results]
+            )
+        ]['run_id']
+
+        predicted_data = []
+        latest_measures = int(validation_size * 0.25)
+
+        y_pred = best_model.predict(x.iloc[latest_measures:])
+
+        for i, y in enumerate(y_pred):
+            predicted_data.append(
+                [
+                    str(dados.index[latest_measures + i]),
+                    y
+                ]
+            )
 
         mlflow.register_model(
-            f"runs:/{run_id}/sklearn-model",
-            "sklearn-k_nearest_neighboor-model",
+            f"runs:/{best_run}/sklearn-model",
+            "sklearn-k_nearest_neighbor-model",
             tags={"user_id": user_id}
         )
 

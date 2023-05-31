@@ -1,10 +1,13 @@
-import os
 import mlflow
 import pandas as pd
 from sklearn import metrics
 from datetime import datetime, timedelta
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.model_selection import train_test_split
+
+from hyperopt import STATUS_OK
+
+from mlflow.models.signature import infer_signature
 
 INPUT_FOLDER = "data"
 OUTPUT_FOLDER = "results"
@@ -81,9 +84,7 @@ def preprocess_data(dados):
     return dados_freq
 
 
-def train_model():
-    health_data = pd.read_csv(os.path.join("datasets", "health_data.csv"))
-    dados = preprocess_data(health_data)
+def build_dataset(dados):
 
     dados.rename(
         columns={
@@ -117,37 +118,65 @@ def train_model():
     x = dados[labels][:-validation_size]
     y = dados["frequencia"][:-validation_size]
 
-    test_size = 0.25
+    return x, y
 
-    x_train, x_test, y_train, y_test = train_test_split(
-        x,
-        y,
-        test_size=test_size,
-        shuffle=False,
-        random_state=7
-    )
 
-    x_test.fillna(method='ffill', inplace=True)
+def train_model(params):
 
-    knn = KNeighborsRegressor(
-        algorithm="auto",
-        n_neighbors=4,
-        p=1,
-        weights="uniform"
-    )
+    with mlflow.start_run(
+        experiment_id=params["experiment_id"],
+        nested=True
+    ) as run:
 
-    knn.fit(x_train, y_train)
+        mlflow.set_tag("mlflow.user", params["user"])
 
-    y_previsto_knn = knn.predict(x_test)
+        x, y = params['x'], params['y']
 
-    predicted_data = []
-    latest_measures = int(validation_size * 0.25)
+        test_size = 0.25
 
-    for i, y in enumerate(y_previsto_knn):
-        predicted_data.append(
-            [
-                str(dados.index[latest_measures + i]),
-                y
-            ])
+        x_train, x_test, y_train, y_test = train_test_split(
+            x,
+            y,
+            test_size=test_size,
+            shuffle=False,
+            random_state=7
+        )
 
-    return predicted_data
+        x_test.fillna(method='ffill', inplace=True)
+
+        mlflow.log_param("algorithm", params["algorithm"])
+        mlflow.log_param("n_neighbors", params["n_neighbors"])
+        mlflow.log_param("p", params["p"])
+        mlflow.log_param("leaf_size", params["leaf_size"])
+        mlflow.log_param("weights", params["weights"])
+
+        knn = KNeighborsRegressor(
+            algorithm=params['algorithm'],
+            n_neighbors=params['n_neighbors'],
+            p=params['p'],
+            leaf_size=params['leaf_size'],
+            weights=params['weights']
+        )
+
+        knn.fit(x_train, y_train)
+
+        y_pred = knn.predict(x_test)
+
+        mae = metrics.mean_absolute_error(y_test, y_pred)
+        mse = metrics.mean_squared_error(y_test, y_pred)
+        r2 = metrics.r2_score(y_test, y_pred)
+
+        mlflow.log_metric("mean_absolute_error", mae)
+        mlflow.log_metric("mean_squared_error", mse)
+        mlflow.log_metric("r2_score", r2)
+
+        signature = infer_signature(x_test, y_test)
+
+        mlflow.sklearn.log_model(knn, "model", signature=signature)
+
+    return {
+        'status': STATUS_OK,
+        'loss': mse,
+        'model': knn,
+        'run_id': run.info.run_id
+    }
