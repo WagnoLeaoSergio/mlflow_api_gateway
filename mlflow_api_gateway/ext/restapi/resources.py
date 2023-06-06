@@ -90,7 +90,7 @@ class MLFlowGateway(Resource):
             "x": x,
             "y": y,
             "algorithm": hp.choice('algorithm', ['ball_tree', 'kd_tree', 'brute']),
-            "n_neighbors": hp.uniformint('n_neighbors', 1, 10),
+            "n_neighbors": hp.uniformint('n_neighbors', 2, 10),
             "p": hp.choice('p', [1, 2]),
             "leaf_size": hp.choice('leaf_size', [20, 30, 40]),
             "weights": hp.choice('weights', ['uniform', 'distance'])
@@ -119,7 +119,7 @@ class MLFlowGateway(Resource):
         ]['run_id']
 
         predicted_data = []
-        latest_measures = len(x) - int(len(x) * 0.15)
+        latest_measures = len(x)
 
         y_pred = best_model.predict(x.iloc[latest_measures:])
 

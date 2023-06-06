@@ -5,7 +5,7 @@ from flask_simplelogin import login_required
 from werkzeug.security import generate_password_hash
 
 from mlflow_api_gateway.ext.database import db
-from mlflow_api_gateway.models import Product, User
+from mlflow_api_gateway.models import User, Measure
 
 # Proteck admin with login / Monkey Patch
 AdminIndexView._handle_view = login_required(AdminIndexView._handle_view)
@@ -26,8 +26,8 @@ def init_app(app):
     admin.template_mode = app.config.FLASK_ADMIN_TEMPLATE_MODE
     admin.init_app(app)
 
-    # Add admin page for Product
-    admin.add_view(sqla.ModelView(Product, db.session))
+    # Add admin page for Measure
+    admin.add_view(sqla.ModelView(Measure, db.session))
 
     # Add admin page for User
     admin.add_view(UserAdmin(User, db.session))

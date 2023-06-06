@@ -135,7 +135,7 @@ def train_model(params):
         x, y = params['x'], params['y']
 
         # TODO: colocar test_size no hyperopt?
-        test_size = 0.30
+        test_size = 0.20
 
         x_train, x_test, y_train, y_test = train_test_split(
             x,
