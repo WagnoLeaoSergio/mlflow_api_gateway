@@ -3,7 +3,7 @@ import time
 import mlflow
 import numpy as np
 import pandas as pd
-
+from datetime import datetime
 from werkzeug.utils import secure_filename
 
 from flask import request
@@ -50,6 +50,10 @@ class MLFlowGateway(Resource):
 
         health_file = request.files.get('health_file')
 
+        start_date = request.form.get("start_date")
+        test_end_date = request.form.get("test_end_date")
+        validation_end_date = request.form.get("validation_end_date")
+
         if health_file is None:
             return {
                 "OK": False,
@@ -79,8 +83,26 @@ class MLFlowGateway(Resource):
 
         predicted_data = None
 
+        start_date = datetime.strptime(start_date, "%Y-%m-%d %H:%M:%S")
+        test_end_date = datetime.strptime(test_end_date, "%Y-%m-%d %H:%M:%S")
+        validation_end_date = datetime.strptime(
+            validation_end_date, "%Y-%m-%d %H:%M:%S")
+
         health_data = pd.read_csv(os.path.join("datasets", "health_data.csv"))
-        dados = preprocess_data(health_data)
+        health_data.drop(["Unnamed: 0"], axis=1)
+        health_data['date'] = pd.to_datetime(health_data['date'])
+        print(health_data.tail())
+
+        proc_mask = (health_data['date'] >= start_date) & (
+            health_data['date'] <= test_end_date)
+
+        val_mask = (health_data['date'] >= test_end_date) & (
+            health_data['date'] <= validation_end_date)
+
+        train_data = health_data.loc[proc_mask]
+        validation_data = health_data.loc[val_mask]
+
+        dados = preprocess_data(train_data)
         x, y = build_dataset(dados)
 
         search_space = {
@@ -118,15 +140,17 @@ class MLFlowGateway(Resource):
             )
         ]['run_id']
 
-        predicted_data = []
-        latest_measures = len(x)
+        val_dados = preprocess_data(validation_data)
+        x, y = build_dataset(val_dados)
 
-        y_pred = best_model.predict(x.iloc[latest_measures:])
+        predicted_data = []
+
+        y_pred = best_model.predict(x)
 
         for i, y in enumerate(y_pred):
             predicted_data.append(
                 [
-                    str(dados.index[latest_measures + i]),
+                    str(val_dados.index[i]),
                     y
                 ]
             )
@@ -134,7 +158,10 @@ class MLFlowGateway(Resource):
         mlflow.register_model(
             f"runs:/{best_run}/sklearn-model",
             "sklearn-k_nearest_neighbor-model",
-            tags={"user_id": user_id}
+            tags={
+                "user_id": user_id,
+                "creation_date": str(datetime.now())
+            }
         )
 
         return {

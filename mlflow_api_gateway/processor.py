@@ -32,7 +32,7 @@ def preprocess_data(dados):
 
     dados_freq = dados_bpm.reset_index().drop(columns=['index'])
     dias_experimentos = dados_freq['heart_rate_start_time'].apply(
-        lambda x: datetime.strptime(x, '%Y-%m-%d %H:%M:%S').date()).unique()
+        lambda x: x.date()).unique()
 
     for dia in dias_experimentos:
 
@@ -40,19 +40,13 @@ def preprocess_data(dados):
 
         for row in dados_freq.iterrows():
 
-            date_row = datetime.strptime(
-                row[1]['heart_rate_start_time'],
-                '%Y-%m-%d %H:%M:%S'
-            ).date()
+            date_row = row[1]['heart_rate_start_time'].date()
 
             if dia == date_row:
                 horarios_frequencias.append(
                     (
                         row[0],
-                        datetime.strptime(
-                            row[1]['heart_rate_start_time'],
-                            '%Y-%m-%d %H:%M:%S'
-                        ).strftime('%H:%M:%S'),
+                        row[1]['heart_rate_start_time'],
                         row[1]['heart_rate']
                     )
                 )
@@ -73,10 +67,7 @@ def preprocess_data(dados):
                 dados_freq['heart_rate_max'][previous[0]] = max_freq
                 dados_freq['heart_rate_min'][previous[0]] = min_freq
 
-                curr_date = datetime.strptime(
-                    dados_freq['heart_rate_start_time'][current[0]],
-                    '%Y-%m-%d %H:%M:%S'
-                )
+                curr_date = dados_freq['heart_rate_start_time'][current[0]]
 
                 end_date = curr_date - timedelta(minutes=1)
                 dados_freq['heart_rate_end_time'][previous[0]] = end_date
@@ -150,6 +141,7 @@ def train_model(params):
         mlflow.log_param("p", params["p"])
         mlflow.log_param("leaf_size", params["leaf_size"])
         mlflow.log_param("weights", params["weights"])
+        mlflow.log_param("run_date", str(datetime.now()))
 
         knn = KNeighborsRegressor(
             algorithm=params['algorithm'],
