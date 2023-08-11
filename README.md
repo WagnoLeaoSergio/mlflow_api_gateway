@@ -51,10 +51,7 @@ Go to:
 - Admin: http://localhost:5000/admin/
   - user: admin, senha: 1234
 - API GET:
-  - http://localhost:5000/api/v1/product/
-  - http://localhost:5000/api/v1/product/1
-  - http://localhost:5000/api/v1/product/2
-  - http://localhost:5000/api/v1/product/3
+  - http://localhost:5000/api/v1/**
 
 
 > **Note**: You can also use `flask run` to run the application.
