@@ -1,6 +1,6 @@
-# mlflow_api_gateway Flask Application
+# mlflow_api_gateway
 
-Awesome mlflow_api_gateway created by WagnoLeaoSergio
+API em Flask para gerenciamento de modelos de Machine Learning utilizando o MLFlow.
 
 ## Installation
 
