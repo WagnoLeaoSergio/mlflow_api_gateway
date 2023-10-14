@@ -91,18 +91,30 @@ class MLFlowGateway(Resource):
         health_data = pd.read_csv(os.path.join("datasets", "health_data.csv"))
         health_data.drop(["Unnamed: 0"], axis=1)
         health_data['date'] = pd.to_datetime(health_data['date'])
+
+        print("len(health_data): ", len(health_data))
         print(health_data.tail())
 
-        proc_mask = (health_data['date'] >= start_date) & (
-            health_data['date'] <= test_end_date)
+        # proc_mask = (health_data['date'] >= start_date) & (
+        #     health_data['date'] <= test_end_date)
+        #
+        # val_mask = (health_data['date'] >= test_end_date) & (
+        #     health_data['date'] <= validation_end_date)
+        # train_data = health_data.loc[proc_mask]
+        # validation_data = health_data.loc[val_mask]
 
-        val_mask = (health_data['date'] >= test_end_date) & (
-            health_data['date'] <= validation_end_date)
+        train_size = int(len(health_data) * 0.6)
+        # validation_size = len(health_data) - train_size
 
-        train_data = health_data.loc[proc_mask]
-        validation_data = health_data.loc[val_mask]
+        train_data = health_data.iloc[:train_size]
+        validation_data = health_data.iloc[train_size:]
+
+        print("len train_data: ", len(train_data))
+        print("len validation_data: ", len(validation_data))
 
         dados = preprocess_data(train_data)
+        print("len dados:", len(dados))
+
         x, y = build_dataset(dados)
 
         search_space = {
@@ -112,7 +124,7 @@ class MLFlowGateway(Resource):
             "x": x,
             "y": y,
             "algorithm": hp.choice('algorithm', ['ball_tree', 'kd_tree', 'brute']),
-            "n_neighbors": hp.uniformint('n_neighbors', 2, 10),
+            "n_neighbors": hp.uniformint('n_neighbors', 2, 6),
             "p": hp.choice('p', [1, 2]),
             "leaf_size": hp.choice('leaf_size', [20, 30, 40]),
             "weights": hp.choice('weights', ['uniform', 'distance'])

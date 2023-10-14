@@ -23,6 +23,13 @@ def preprocess_data(dados):
         columns={'date': 'heart_rate_start_time'})
     dados_bpm = dados_bpm[dados_bpm['heart_rate'] != -1]
 
+    # dados_bpm.loc[dados_bpm["heart_rate"] == -1] = None
+    # dados_bpm["heart_rate"].fillna(
+    #     dados_bpm["heart_rate"].mean(),
+    #     inplace=True
+    # )
+    print("len dados_freq: ", len(dados_bpm))
+
     dados_bpm['heart_rate_update_time'] = dados_bpm['heart_rate_start_time']
     dados_bpm['heart_rate_create_time'] = dados_bpm['heart_rate_start_time']
     dados_bpm['heart_rate_end_time'] = dados_bpm['heart_rate_start_time']
@@ -33,6 +40,8 @@ def preprocess_data(dados):
     dados_freq = dados_bpm.reset_index().drop(columns=['index'])
     dias_experimentos = dados_freq['heart_rate_start_time'].apply(
         lambda x: x.date()).unique()
+
+    print("len dados_freq: ", len(dados_freq))
 
     for dia in dias_experimentos:
 
@@ -125,8 +134,11 @@ def train_model(params):
 
         x, y = params['x'], params['y']
 
+        print(len(x))
+        print(x)
+
         # TODO: colocar test_size no hyperopt?
-        test_size = 0.20
+        test_size = 0.30
 
         x_train, x_test, y_train, y_test = train_test_split(
             x,
